@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "jessicak/my-spring-app:${env.BUILD_NUMBER}"
-        SONARQUBE = 'SonarQube' // SonarQube installation name in Jenkins
+        DOCKER_IMAGE = "jessicak/myapp:%BUILD_NUMBER%"
+        SONARQUBE = 'SonarQube'  // SonarQube server name in Jenkins
     }
 
     stages {
@@ -11,18 +11,18 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building the application...'
-                // Example for Maven
-                sh './mvnw clean package -DskipTests'
+                // Maven build
+                bat '.\\mvnw.cmd clean package -DskipTests'
                 // Build Docker image
-                sh "docker build -t ${DOCKER_IMAGE} ."
+                bat "docker build -t %DOCKER_IMAGE% ."
             }
         }
 
         stage('Test') {
             steps {
                 echo 'Running unit tests...'
-                sh './mvnw test'
-                junit '**/target/surefire-reports/*.xml'
+                bat '.\\mvnw.cmd test'
+                junit '**\\target\\surefire-reports\\*.xml'
             }
         }
 
@@ -30,7 +30,7 @@ pipeline {
             steps {
                 echo 'Running SonarQube analysis...'
                 withSonarQubeEnv(SONARQUBE) {
-                    sh './mvnw sonar:sonar'
+                    bat '.\\mvnw.cmd sonar:sonar'
                 }
             }
         }
@@ -38,15 +38,16 @@ pipeline {
         stage('Security') {
             steps {
                 echo 'Running OWASP Dependency Check...'
-                sh './mvnw org.owasp:dependency-check-maven:check'
-                // Optionally parse report and fail build if critical issues found
+                bat '.\\mvnw.cmd org.owasp:dependency-check-maven:check'
+                // Optionally parse report to fail build if critical vulnerabilities found
             }
         }
 
         stage('Deploy') {
             steps {
                 echo 'Deploying to staging environment...'
-                sh "docker run -d -p 8080:8080 --name myapp-staging ${DOCKER_IMAGE}"
+                // Run Docker container
+                bat "docker run -d -p 8080:8080 --name myapp-staging %DOCKER_IMAGE%"
             }
         }
 
@@ -54,18 +55,16 @@ pipeline {
             steps {
                 input message: 'Approve release to production?'
                 echo 'Deploying to production...'
-                sh "docker tag ${DOCKER_IMAGE} yourusername/myapp:latest"
-                sh "docker push yourusername/myapp:latest"
-                // Optionally trigger AWS CodeDeploy or Octopus Deploy
+                bat "docker tag %DOCKER_IMAGE% jessicak/myapp:latest"
+                bat "docker push jessicak/myapp:latest"
             }
         }
 
         stage('Monitoring') {
             steps {
                 echo 'Monitoring application...'
-                // Example: simple health check
-                sh 'curl -f http://localhost:8080/actuator/health || echo "Alert: App is down!"'
-                // For real monitoring, integrate Datadog/NewRelic
+                // Simple health check
+                bat 'powershell -Command "try { Invoke-WebRequest -Uri http://localhost:8080/actuator/health -UseBasicParsing -ErrorAction Stop } catch { Write-Host \'Alert: App is down!\' }"'
             }
         }
     }
