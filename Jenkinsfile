@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "jessicak/myapp:%BUILD_NUMBER%"
-        SONARQUBE = 'SonarQube'  // SonarQube server name in Jenkins
+        SONARQUBE = 'MySonarServer'  // SonarQube server name in Jenkins
     }
 
     stages {
@@ -11,8 +11,8 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building the application...'
-                // Maven build
-                bat '.\\mvnw.cmd clean package -DskipTests'
+                // Build using installed Maven
+                bat 'mvn clean package -DskipTests'
                 // Build Docker image
                 bat "docker build -t %DOCKER_IMAGE% ."
             }
@@ -21,7 +21,7 @@ pipeline {
         stage('Test') {
             steps {
                 echo 'Running unit tests...'
-                bat '.\\mvnw.cmd test'
+                bat 'mvn test'
                 junit '**\\target\\surefire-reports\\*.xml'
             }
         }
@@ -30,7 +30,7 @@ pipeline {
             steps {
                 echo 'Running SonarQube analysis...'
                 withSonarQubeEnv(SONARQUBE) {
-                    bat '.\\mvnw.cmd sonar:sonar'
+                    bat 'mvn sonar:sonar'
                 }
             }
         }
@@ -38,8 +38,7 @@ pipeline {
         stage('Security') {
             steps {
                 echo 'Running OWASP Dependency Check...'
-                bat '.\\mvnw.cmd org.owasp:dependency-check-maven:check'
-                // Optionally parse report to fail build if critical vulnerabilities found
+                bat 'mvn org.owasp:dependency-check-maven:check'
             }
         }
 
@@ -63,7 +62,7 @@ pipeline {
         stage('Monitoring') {
             steps {
                 echo 'Monitoring application...'
-                // Simple health check
+                // Simple health check using PowerShell
                 bat 'powershell -Command "try { Invoke-WebRequest -Uri http://localhost:8080/actuator/health -UseBasicParsing -ErrorAction Stop } catch { Write-Host \'Alert: App is down!\' }"'
             }
         }
@@ -71,7 +70,7 @@ pipeline {
 
     post {
         failure {
-            mail to: 'team@example.com',
+            mail to: 'jessikakshapati@gmail.com',
                  subject: "Build failed in Jenkins: ${currentBuild.fullDisplayName}",
                  body: "Check Jenkins for details: ${env.BUILD_URL}"
         }
