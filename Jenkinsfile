@@ -1,68 +1,80 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_IMAGE = "jessicak/my-spring-app:${env.BUILD_NUMBER}"
+        SONARQUBE = 'SonarQube' // SonarQube installation name in Jenkins
+    }
+
     stages {
+
         stage('Build') {
             steps {
-                bat 'echo Building the application...'
-                // Example: Build Docker image or JAR
-                bat 'docker build -t ontrack-app .'
+                echo 'Building the application...'
+                // Example for Maven
+                sh './mvnw clean package -DskipTests'
+                // Build Docker image
+                sh "docker build -t ${DOCKER_IMAGE} ."
             }
         }
 
         stage('Test') {
             steps {
-                bat 'echo Running automated tests...'
-                // Example: Run unit tests
-                bat 'call gradlew.bat test'   // for Java/Gradle on Windows
-                // or: bat 'npm test' for Node.js
+                echo 'Running unit tests...'
+                sh './mvnw test'
+                junit '**/target/surefire-reports/*.xml'
             }
         }
 
         stage('Code Quality') {
             steps {
-                bat 'echo Running SonarQube analysis...'
-                withSonarQubeEnv('SonarQube') {
-                    bat 'sonar-scanner -Dsonar.projectKey=7.3HD -Dsonar.sources=.'
+                echo 'Running SonarQube analysis...'
+                withSonarQubeEnv(SONARQUBE) {
+                    sh './mvnw sonar:sonar'
                 }
             }
         }
 
         stage('Security') {
             steps {
-                bat 'echo Running security scans...'
-                // Dependency scanning (e.g., OWASP Dependency-Check or Snyk)
-                bat 'snyk test || exit /b 0'
-            }
-            post {
-                always {
-                    echo "Review vulnerabilities: fix high severity issues before release."
-                }
+                echo 'Running OWASP Dependency Check...'
+                sh './mvnw org.owasp:dependency-check-maven:check'
+                // Optionally parse report and fail build if critical issues found
             }
         }
 
-        stage('Deploy to Staging') {
+        stage('Deploy') {
             steps {
-                bat 'echo Deploying to staging environment...'
-                // Example with Docker Compose
-                bat 'docker-compose -f docker-compose.staging.yml up -d'
+                echo 'Deploying to staging environment...'
+                sh "docker run -d -p 8080:8080 --name myapp-staging ${DOCKER_IMAGE}"
             }
         }
 
-        stage('Release to Production') {
+        stage('Release') {
             steps {
-                bat 'echo Releasing to production...'
-                // Example with AWS CodeDeploy or Kubernetes
-                bat 'kubectl apply -f k8s/production-deployment.yaml'
+                input message: 'Approve release to production?'
+                echo 'Deploying to production...'
+                sh "docker tag ${DOCKER_IMAGE} yourusername/myapp:latest"
+                sh "docker push yourusername/myapp:latest"
+                // Optionally trigger AWS CodeDeploy or Octopus Deploy
             }
         }
 
-        stage('Monitoring & Alerting') {
+        stage('Monitoring') {
             steps {
-                bat 'echo Setting up monitoring...'
-                // Example: integrate Datadog/New Relic
-                bat 'call scripts\\setup-monitoring.bat'
+                echo 'Monitoring application...'
+                // Example: simple health check
+                sh 'curl -f http://localhost:8080/actuator/health || echo "Alert: App is down!"'
+                // For real monitoring, integrate Datadog/NewRelic
             }
+        }
+    }
+
+    post {
+        failure {
+            mail to: 'team@example.com',
+                 subject: "Build failed in Jenkins: ${currentBuild.fullDisplayName}",
+                 body: "Check Jenkins for details: ${env.BUILD_URL}"
         }
     }
 }
