@@ -5,7 +5,7 @@ pipeline {
         stage('Build') {
             steps {
                 bat 'echo Building the application...'
-                // Example: Build Docker image or jar
+                // Example: Build Docker image or JAR
                 bat 'docker build -t ontrack-app .'
             }
         }
@@ -14,26 +14,25 @@ pipeline {
             steps {
                 bat 'echo Running automated tests...'
                 // Example: Run unit tests
-                bat 'gradlew.bat test'   // for Java/Gradle on Windows
-                // or `npm test` for Node.js
+                bat 'call gradlew.bat test'   // for Java/Gradle on Windows
+                // or: bat 'npm test' for Node.js
             }
         }
 
         stage('Code Quality') {
             steps {
-                 bat 'echo Running SonarQube analysis...'
-                 withSonarQubeEnv('SonarQube') {
-                    bat 'sonar-scanner -Dsonar.projectKey=ontrack-app -Dsonar.sources=.'
+                bat 'echo Running SonarQube analysis...'
+                withSonarQubeEnv('SonarQube') {
+                    bat 'sonar-scanner -Dsonar.projectKey=7.3HD -Dsonar.sources=.'
+                }
+            }
         }
-    }
-}
-
 
         stage('Security') {
             steps {
                 bat 'echo Running security scans...'
                 // Dependency scanning (e.g., OWASP Dependency-Check or Snyk)
-                bat 'snyk test || exit 0'
+                bat 'snyk test || exit /b 0'
             }
             post {
                 always {
@@ -67,4 +66,3 @@ pipeline {
         }
     }
 }
-
