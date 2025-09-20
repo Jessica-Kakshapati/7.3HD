@@ -21,11 +21,13 @@ pipeline {
 
         stage('Code Quality') {
             steps {
-                bat 'echo Running code quality checks...'
-                // Example: SonarQube analysis
-                bat 'sonar-scanner -Dsonar.projectKey=ontrack-app'
-            }
+                 bat 'echo Running SonarQube analysis...'
+                 withSonarQubeEnv('SonarQube') {
+                    bat 'sonar-scanner -Dsonar.projectKey=ontrack-app -Dsonar.sources=.'
         }
+    }
+}
+
 
         stage('Security') {
             steps {
